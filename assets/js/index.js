@@ -3,6 +3,9 @@ window.addEventListener("DOMContentLoaded", () => {
     if (storedPO) {
         document.getElementById("po").value = storedPO;
     }
+    if (storedStart) {
+        document.getElementById("cartonStart").value = storedStart;
+    }
 });
 
 document.getElementById("cartonForm").addEventListener("submit", function(e) {
@@ -34,11 +37,22 @@ document.getElementById("cartonForm").addEventListener("submit", function(e) {
         label.querySelector(".out-style").innerText = style;
         container.appendChild(label);
     }
+
+    const newStart = startNum + labelCount;
+    document.getElementById("cartonStart").value = newStart;
+    localStorage.setItem("lastCartonStart", newStart);
 });
 
 
 document.getElementById("clearLabels").addEventListener("click", () => {
+    // Clear labels
     document.getElementById("labels-container").innerHTML = "";
+
+    // Reset carton start to 1
+    document.getElementById("cartonStart").value = 1;
+
+    // Remove saved carton start from localStorage
+    localStorage.removeItem("lastCartonStart");
 });
 
 document.getElementById("exportPdf").addEventListener("click", async () => {
