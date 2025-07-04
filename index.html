@@ -7,81 +7,41 @@
   <link rel="stylesheet" href="assets/css/index.css">
 </head>
 <body>
-  <h1 class="no-print">Carton Label Generator</h1>
-  <form id="cartonForm" class="no-print">
-    <label>PO Number: <input type="text" id="po" required></label>
-    <label>Carton Quantity: <input type="text" id="qty" required></label>
-    <label>Starting Carton Number: <input type="number" id="cartonStart" value="1" required></label>
-    <label>Total Cartons: <input type="number" id="cartonTotal" value="300" required></label>
-    <label>Style Name: <input type="text" id="style" required></label>
-    <label>Number of Labels to Generate: <input type="number" id="labelCount" min="1" max="100" value="4" required></label>
-    <button type="submit">Generate Labels</button>
-  </form>
+    <h1 class="no-print">Carton Label Generator</h1>
+    <form id="cartonForm" class="no-print">
+        <label>PO Number: <input type="text" id="po" required></label>
+        <label>Carton Quantity: <input type="text" id="qty" required></label>
+        <label>Starting Carton Number: <input type="number" id="cartonStart" value="1" required></label>
+        <label>Total Cartons: <input type="number" id="cartonTotal" value="300" required></label>
+        <label>Style Name: <input type="text" id="style" required></label>
+        <label>Number of Labels to Generate: <input type="number" id="labelCount" min="1" max="100" value="4" required></label>
+        <button type="submit">Generate Labels</button>
+        <button type="button" id="clearLabels" class="no-print">Clear All Labels</button>
+        <button type="button" id="exportPdf" class="no-print">Export to PDF</button>
+    </form>
 
-  <div id="labels-container"></div>
+    <div id="labels-container"></div>
 
-  <template id="label-template">
-    <div class="label">
-      <div class="supplier">
-        <strong>Supplier Address</strong><br>
-        Sisters and Seekers Ltd<br>
-        Unit 2/4 Vista Business Park<br>
-        Ffordd Stephen Wade<br>
-        Hawarden<br>
-        CH5 3FN
-      </div>
-      <div class="label-box">
-        <span>PO Number:</span> <div class="out-po">ADD PO NUMBER</div>
-      </div>
-      <div class="label-box">
-        <span>Carton QTY:</span> <div class="out-qty"></div>
-      </div>
-      <div class="label-box">
-        <span>Carton Number:</span> <div class="out-cartonNumber">1/300</div>
-      </div>
-      <div class="label-box">
-        <span>Style:</span> <div class="out-style">ADD STYLE NAME</div>
-      </div>
-    </div>
-  </template>
-
-  <script>
-    // Load stored PO number if available
-    window.addEventListener("DOMContentLoaded", () => {
-      const storedPO = localStorage.getItem("lastPO");
-      if (storedPO) {
-        document.getElementById("po").value = storedPO;
-      }
-    });
-
-    document.getElementById("cartonForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-
-      const po = document.getElementById("po").value;
-      const qty = document.getElementById("qty").value;
-      const startNum = parseInt(document.getElementById("cartonStart").value);
-      const totalNum = parseInt(document.getElementById("cartonTotal").value);
-      const style = document.getElementById("style").value;
-      const labelCount = parseInt(document.getElementById("labelCount").value);
-
-      // Store PO number for future autofill
-      localStorage.setItem("lastPO", po);
-
-      const container = document.getElementById("labels-container");
-      const template = document.getElementById("label-template").content;
-
-      container.innerHTML = ""; // clear existing labels
-
-      for (let i = 0; i < labelCount; i++) {
-        const fragment = document.importNode(template, true);
-        const label = fragment.querySelector('.label');
-        label.querySelector(".out-po").innerText = po;
-        label.querySelector(".out-qty").innerText = qty;
-        label.querySelector(".out-cartonNumber").innerText = `${startNum + i}/${totalNum}`;
-        label.querySelector(".out-style").innerText = style;
-        container.appendChild(label);
-      }
-    });
-  </script>
+    <template id="label-template">
+        <div class="label">
+            <div class="label-content">
+                <div class="label-section">
+                    <strong>Supplier Address</strong><br>
+                    Sisters and Seekers Ltd<br>
+                    Unit 2/4 Vista Business Park<br>
+                    Ffordd Stephen Wade<br>
+                    Hawarden<br>
+                    CH5 3FN
+                </div>
+                <div class="label-section" ><strong>PO Number:</strong> <span class="out-po">ADD PO NUMBER</span></div>
+                <div class="label-section"><strong>Carton QTY:</strong> <span class="out-qty">QTY</span></div>
+                <div class="label-section"><strong>Carton Number:</strong> <span class="out-cartonNumber">1/300</span></div>
+                <div class="label-section"><strong>Style:</strong> <span class="out-style">STYLE NAME</span></div>
+            </div>
+        </div>
+    </template>
+    <script src="assets/js/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
