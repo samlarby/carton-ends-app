@@ -1,9 +1,59 @@
 
 body {
-    font-family: Arial, sans-serif;
-    padding: 20px;
+    font-family: 'Montserrat', sans-serif;
+    padding: 5px;
     background: #f9f9f9;
     }
+
+header {
+    display: flex;
+    justify-content: space-between;
+    /* background-color: ;
+    max-height: ;
+    padding: ;  */
+    }
+
+header a {
+    text-decoration: none;
+}
+
+h1 {
+    margin: 0;
+    padding: 0;
+    font-weight: 300;
+}
+
+.navbar {
+    list-style-type: none;
+    margin: 0;
+    padding-top: 10px;
+    padding-right: 10px;
+    text-align: right;
+}
+
+.nav-link {
+    display: inline;
+    padding-left: 30px;
+    font-size: large;
+    text-align: right;
+}
+
+.nav-link a {
+    text-decoration: none;
+    color: black;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 300;
+    letter-spacing: 3px;
+}
+
+.main-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding-top: 20px;
+}
 
 form {
     margin-bottom: 30px;
@@ -26,6 +76,14 @@ input {
     width: 100%;
     page-break-inside: avoid;
     }
+    
+#labels {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    width: 100%;
+    page-break-inside: avoid;
+}    
 
 .label {
     width: 210mm;
@@ -51,6 +109,7 @@ input {
     background: white;
 }
 
+
 /* Each section */
 .label-section {
     border-top: 1px solid black;
@@ -68,6 +127,9 @@ input {
     border-top: none;
 }
 
+.out-contents {
+    text-transform: uppercase;
+}
 
 .supplier {
     border: 1px solid black;
@@ -77,20 +139,16 @@ input {
     text-align: center;
     }
 
-.label-box {
-    border: 1px solid black;
-    padding: 10px;
-    margin-bottom: 10px;
-    min-height: 50px;
-    font-size: 16px;
-    text-align: center;
-    }
+.fa-solid {
+  font-size: 40px;
+  color: #8b8787;
+  margin-bottom: 10px;
+}
 
-.label-box span {
-    font-weight: bold;
-    margin-right: 10px;
-    text-transform: uppercase;
-    }
+.fa-solid:hover {
+  color: black;
+  cursor: pointer;
+}
 
 @media print {
     body {
