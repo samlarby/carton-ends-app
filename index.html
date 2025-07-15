@@ -24,6 +24,7 @@
         </nav>
     </header>
     <div class="main-container">
+        <h2>Create carton ends manually</h2>
         <form id="cartonForm" class="no-print">
             <label>PO Number: <input type="text" id="po" required></label>
             <label>Total Cartons: <input type="number" id="cartonTotal" value="" required></label>
@@ -31,9 +32,11 @@
             <label>Style Name: <input type="text" id="style" required></label>
             <label>Carton Quantity: <input type="text" id="qty" required></label>
             <label>Number of Labels to Generate: <input type="number" id="labelCount" min="1" max="100" value="" required></label>
-            <button type="submit">Generate Labels</button>
-            <button type="button" id="clearLabels" class="no-print">Clear All Labels</button>
-            <button type="button" id="exportPdf" class="no-print">Export to PDF</button>
+            <div class="buttons-container">
+                <button type="submit">Generate Labels</button>
+                <button type="button" id="clearLabels" class="no-print">Clear All Labels</button>
+                <button type="button" id="exportPdf" class="no-print">Export to PDF</button>
+            </div>
         </form>
 
         <div id="labels-container"></div>

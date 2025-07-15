@@ -70,4 +70,33 @@ document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
 
     container.appendChild(label);
   }
+
+   document.getElementById("clearLabels")?.addEventListener("click", () => {
+    document.getElementById("labels-container").innerHTML = "";
+    document.getElementById("cartonStart").value = 1;
+    localStorage.removeItem("lastCartonStart");
+  });
+
+   document.getElementById("exportPdf")?.addEventListener("click", async () => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const labels = document.querySelectorAll(".label");
+
+    for (let i = 0; i < labels.length; i++) {
+      const label = labels[i];
+      const canvas = await html2canvas(label, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = 210;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      if (i !== 0) pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+    }
+
+    pdf.save("Carton_Labels.pdf");
+  });
 });
+
+
+

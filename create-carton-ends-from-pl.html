@@ -16,51 +16,52 @@
                     <a href="index.html">Create Carton Labels</a>
                 </li>
                 <li class="nav-link">
-                    <a href="carton-ends-from-packing-list.html" style="font-weight: bold;" >Convert PL</a>
+                    <a href="#">Create PL</a>
                 </li>
                 <li class="nav-link">
-                    <a href="#">Create PL</a>
+                    <a href="create-carton-ends-from-pl.html" style="font-weight: bold;">Convert PL</a>
                 </li>
             </ul>
         </nav>
     </header>
-
-    <h2>Carton Label Generator</h2>
-    <form id="cartonForm">
-        <label for="po">PO Number:</label>
-        <input id="po" type="text" required>
-
-        <label for="style">Style Name:</label>
-        <input id="style" type="text" required>
-
-        <label for="excelData">Paste Excel Data:</label>
-        <textarea id="excelData" placeholder="Paste from Excel here" required></textarea>
-
-        <button type="submit">Generate Labels</button>
-    </form>
-     
-    <div id="labels-container"></div>
-
-    <template id="label-template">
-        <div class="label">
-            <div class="label-content">
-                    <div class="label-section">
-                        <strong>Supplier Address</strong><br>
-                        Sisters and Seekers Ltd<br>
-                        Unit 2/4 Vista Business Park<br>
-                        Ffordd Stephen Wade<br>
-                        Hawarden<br>
-                        CH5 3FN
-                    </div>
-                    <div class="label-section" ><strong>PO Number:</strong> <span class="out-po">ADD PO NUMBER</span></div>
-                    <div class="label-section"><strong>Carton QTY:</strong> <span class="out-contents">QTY</span></div>
-                    <div class="label-section"><strong>Carton Number:</strong> <span class="out-cartonNumber">1/300</span></div>
-                    <div class="label-section"><strong>Style:</strong> <span class="out-style">STYLE NAME</span></div>
-                    <!-- <div class="label-section out-contents"> -->
-                <!-- contents will be inserted here -->
+    <div class="main-container">
+        <h2>Carton Label Generator</h2>
+        <form id="cartonForm">
+            <label for="po">PO Number: <input id="po" type="text" required></label>
+            <label for="style">Style Name: <input id="style" type="text" required></label>
+            <label for="excelData">Paste Excel Data:</label>
+            <textarea id="excelData" placeholder="Paste from Excel here" rows="10" required></textarea>
+            <div class="buttons-container">
+                <button type="submit" style="width: fit-content; margin-top: 10px;">Generate Labels</button>
+                <button type="button" id="clearLabels" class="no-print">Clear All Labels</button>
+                <button type="button" id="exportPdf" class="no-print">Export to PDF</button>
             </div>
-        </div>
-    </template>
+        </form>
+        
+        <div id="labels-container"></div>
+
+        <template id="label-template">
+            <div class="label">
+                <div class="label-content">
+                        <div class="label-section">
+                            <strong>Supplier Address</strong><br>
+                            Sisters and Seekers Ltd<br>
+                            Unit 2/4 Vista Business Park<br>
+                            Ffordd Stephen Wade<br>
+                            Hawarden<br>
+                            CH5 3FN
+                        </div>
+                        <div class="label-section" ><strong>PO Number:</strong> <span class="out-po">ADD PO NUMBER</span></div>
+                        <div class="label-section"><strong>Carton QTY:</strong> <span class="out-contents">QTY</span></div>
+                        <div class="label-section"><strong>Carton Number:</strong> <span class="out-cartonNumber">1/300</span></div>
+                        <div class="label-section"><strong>Style:</strong> <span class="out-style">STYLE NAME</span></div>
+                    <!-- contents will be inserted here -->
+                </div>
+            </div>
+        </template>
+    </div>
 </body>
 <script src="assets/js/create-carton-ends-from-pl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </html>
