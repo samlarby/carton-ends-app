@@ -176,6 +176,27 @@ textarea {
   background-color: #f0f0f0;
 }
 
+th, td { 
+    border: 1px solid #ccc; 
+    padding: 5px 10px; 
+    text-align: center; 
+}
+
+table { border-collapse: collapse;
+        margin-top: 20px; 
+}
+
+.tables-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.table {
+    margin: 10px;
+}
+
+
 
 @media print {
     body {

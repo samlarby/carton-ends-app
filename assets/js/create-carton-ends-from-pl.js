@@ -22,17 +22,21 @@ document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
   // Headers (assume first row)
   const headerCells = lines[0].split(/\t/).map(h => h.trim().toUpperCase());
 
-  const sizeColumns = ["XXS","XS","S","M","L","XL","XXL","3XL"];
+  const sizeColumns = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
   const sizeIndexes = {};
   headerCells.forEach((h, i) => {
     if (sizeColumns.includes(h)) sizeIndexes[h] = i;
   });
 
-  const totalCartons = lines.length - 1;
-
-  // Clear previous
+  // ✅ UPDATED: Get existing labels count
   const container = document.getElementById("labels-container");
-  container.innerHTML = "";
+  const existingCount = container.querySelectorAll('.label').length;
+
+  const newCartonsCount = lines.length - 1;
+  const combinedTotal = existingCount + newCartonsCount;
+
+  // ✅ REMOVED: Do not clear labels anymore
+  // container.innerHTML = "";
 
   // Process each row
   for (let i = 1; i < lines.length; i++) {
@@ -62,7 +66,11 @@ document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
 
     label.querySelector(".out-po").innerText = po;
     label.querySelector(".out-style").innerText = style;
-    label.querySelector(".out-cartonNumber").innerText = `${cartonNo}/${totalCartons}`;
+
+    // ✅ UPDATED: Correct carton sequence
+    const sequenceNumber = existingCount + i;
+    label.querySelector(".out-cartonNumber").innerText = `${sequenceNumber}/${combinedTotal}`;
+
 
     // Fill in contents section
     const contentsDiv = label.querySelector(".out-contents");
@@ -71,13 +79,13 @@ document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
     container.appendChild(label);
   }
 
-   document.getElementById("clearLabels")?.addEventListener("click", () => {
+  document.getElementById("clearLabels")?.addEventListener("click", () => {
     document.getElementById("labels-container").innerHTML = "";
     document.getElementById("cartonStart").value = 1;
     localStorage.removeItem("lastCartonStart");
   });
 
-   document.getElementById("exportPdf")?.addEventListener("click", async () => {
+  document.getElementById("exportPdf")?.addEventListener("click", async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const labels = document.querySelectorAll(".label");
@@ -97,6 +105,3 @@ document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
     pdf.save("Carton_Labels.pdf");
   });
 });
-
-
-

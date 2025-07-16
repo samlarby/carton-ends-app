@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Packing List</title>
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+    <header>
+        <h1 class="no-print">Carton and Packing List App</h1>
+        <nav>
+            <ul class="navbar">
+                <li class="nav-link">
+                    <a href="index.html">Create Carton Labels</a>
+                </li>
+                <li class="nav-link">
+                    <a href="create-carton-ends-from-pl.html" >Convert PL</a>
+                </li>
+                <li class="nav-link">
+                    <a href="carton-counter.html" style="font-weight: bold;">Carton Counter</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+<div class="main-container">
+  <h2>Carton Counter</h2>
+  <input id="entryInput" placeholder="e.g. M-10" onkeydown="if(event.key==='Enter'){addEntry();}" />
+  <button onclick="addEntry()">Add</button>
+  <button onclick="resetAll()">Reset</button>
+
+  <div class="tables-container">
+    <div class="table">
+        <h3>Summary</h3>
+        <table id="summaryTable">
+            <tr>
+            <th>Size</th>
+            <th>Qty</th>
+            <th>Count</th>
+            </tr>
+        </table>
+        <p id="totalBoxes">Total Boxes: 0</p>
+    </div>
+    <div class="table">
+        <h3>Log</h3>
+        <table id="logTable">
+            <tr>
+            <th>Size</th>
+            <th>Qty</th>
+            </tr>
+        </table>
+    </div>
+  </div>
+</div>
+
+  <script src="assets/js/carton-counter.js"></script>
+</body>
+</html>
