@@ -1,91 +1,142 @@
-document.getElementById("cartonForm")?.addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  const po = document.getElementById("po").value.trim();
-  const style = document.getElementById("style").value.trim();
-  const excelText = document.getElementById("excelData").value.trim();
-
-  if (!excelText) {
-    alert("Please paste your Excel data!");
-    return;
-  }
-
-  // Save last PO
-  localStorage.setItem("lastPO", po);
-
-  const lines = excelText.split(/\r?\n/);
-  if (lines.length < 2) {
-    alert("Please include at least header and one row!");
-    return;
-  }
-
-  // Headers (assume first row)
-  const headerCells = lines[0].split(/\t/).map(h => h.trim().toUpperCase());
-
-  const sizeColumns = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
-  const sizeIndexes = {};
-  headerCells.forEach((h, i) => {
-    if (sizeColumns.includes(h)) sizeIndexes[h] = i;
-  });
-
-  // ✅ UPDATED: Get existing labels count
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("cartonForm");
   const container = document.getElementById("labels-container");
-  const existingCount = container.querySelectorAll('.label').length;
+  const clearButton = document.getElementById("clearLabels");
+  const exportButton = document.getElementById("exportPdf");
 
-  const newCartonsCount = lines.length - 1;
-  const combinedTotal = existingCount + newCartonsCount;
+  // 🟡 Render saved labels on page load
+  function renderSavedLabels() {
+    const savedLabels = JSON.parse(localStorage.getItem("labels") || "[]");
+    const template = document.getElementById("label-template").content;
+    const total = savedLabels.length;
 
-  // ✅ REMOVED: Do not clear labels anymore
-  // container.innerHTML = "";
+    savedLabels.forEach(labelData => {
+      const fragment = document.importNode(template, true);
+      const label = fragment.querySelector(".label");
 
-  // Process each row
-  for (let i = 1; i < lines.length; i++) {
-    const row = lines[i].trim();
-    if (!row) continue;
+      label.querySelector(".out-po").innerText = labelData.po;
+      label.querySelector(".out-style").innerText = labelData.style;
+      label.querySelector(".out-cartonNumber").innerText = `${labelData.cartonNumber}/${total}`;
 
-    const cells = row.split(/\t/);
-    let cartonNo = cells[0]?.trim() || `${i}`;
+      const contentsDiv = label.querySelector(".out-contents");
+      contentsDiv.innerHTML = `<div class="label-box">${labelData.size} - ${labelData.quantity}</div>`;
 
-    // Gather contents
-    let contents = [];
-    for (const size of sizeColumns) {
-      const idx = sizeIndexes[size];
-      if (idx === undefined) continue;
-      const val = cells[idx]?.trim();
-      if (val && !isNaN(val) && +val > 0) {
-        contents.push(`${size.toLowerCase()} - ${val}`);
+      container.appendChild(label);
+    });
+  }
+  renderSavedLabels();
+
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const po = document.getElementById("po").value.trim();
+    const style = document.getElementById("style").value.trim();
+    const excelText = document.getElementById("excelData").value.trim();
+
+    if (!excelText) {
+      alert("Please paste your Excel data!");
+      return;
+    }
+
+    localStorage.setItem("lastPO", po);
+
+    const lines = excelText.split(/\r?\n/);
+    if (lines.length < 2) {
+      alert("Please include headers and at least one row of data!");
+      return;
+    }
+
+    const rawHeaders = lines[0].split(/\t/).map(h => h.trim());
+    const headers = rawHeaders.map(h => h.toUpperCase());
+
+    const sizeIndex = headers.findIndex(h => h === "SIZE");
+    const qtyIndex = headers.findIndex(h => h === "QUANTITY");
+
+    if (sizeIndex === -1 || qtyIndex === -1) {
+      alert(`Header must contain 'Size' and 'Quantity'. Found: ${rawHeaders.join(", ")}`);
+      return;
+    }
+
+    const entries = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].trim();
+      if (!row) continue;
+
+      const cells = row.split(/\t/);
+      if (cells.length <= Math.max(sizeIndex, qtyIndex)) {
+        console.warn(`Skipping malformed row: ${row}`);
+        continue;
+      }
+
+      const size = cells[sizeIndex]?.trim();
+      const qty = cells[qtyIndex]?.trim();
+
+      if (size && qty && !isNaN(qty) && +qty > 0) {
+        entries.push({ size: size.toLowerCase(), quantity: +qty });
       }
     }
 
-    if (contents.length === 0) continue;
+    if (entries.length === 0) {
+      alert("No valid size/quantity data found.");
+      return;
+    }
 
-    // Create label from template
     const template = document.getElementById("label-template").content;
-    const fragment = document.importNode(template, true);
-    const label = fragment.querySelector('.label');
+    const existingLabels = container.querySelectorAll(".label");
+    const savedLabels = JSON.parse(localStorage.getItem("labels") || "[]");
+    const newTotal = existingLabels.length + entries.length;
 
-    label.querySelector(".out-po").innerText = po;
-    label.querySelector(".out-style").innerText = style;
+    // 🔁 Update existing labels' /total
+    existingLabels.forEach(label => {
+      const numberText = label.querySelector(".out-cartonNumber").innerText;
+      const currentNumber = numberText.split("/")[0];
+      label.querySelector(".out-cartonNumber").innerText = `${currentNumber}/${newTotal}`;
+    });
 
-    // ✅ UPDATED: Correct carton sequence
-    const sequenceNumber = existingCount + i;
-    label.querySelector(".out-cartonNumber").innerText = `${sequenceNumber}/${combinedTotal}`;
+    const newLabelData = [];
 
+    // 🆕 Create new labels
+    entries.forEach((entry, index) => {
+      const fragment = document.importNode(template, true);
+      const label = fragment.querySelector(".label");
 
-    // Fill in contents section
-    const contentsDiv = label.querySelector(".out-contents");
-    contentsDiv.innerHTML = contents.map(item => `<div class="label-box">${item}</div>`).join("");
+      const cartonNumber = existingLabels.length + index + 1;
 
-    container.appendChild(label);
-  }
+      label.querySelector(".out-po").innerText = po;
+      label.querySelector(".out-style").innerText = style;
+      label.querySelector(".out-cartonNumber").innerText = `${cartonNumber}/${newTotal}`;
 
-  document.getElementById("clearLabels")?.addEventListener("click", () => {
-    document.getElementById("labels-container").innerHTML = "";
-    document.getElementById("cartonStart").value = 1;
+      const contentsDiv = label.querySelector(".out-contents");
+      contentsDiv.innerHTML = `<div class="label-box">${entry.size} - ${entry.quantity}</div>`;
+
+      container.appendChild(label);
+
+      // Store this label for persistence
+      newLabelData.push({
+        po,
+        style,
+        size: entry.size,
+        quantity: entry.quantity,
+        cartonNumber
+      });
+    });
+
+    // 💾 Save all labels to localStorage
+    const allLabels = [...savedLabels, ...newLabelData];
+    localStorage.setItem("labels", JSON.stringify(allLabels));
+  });
+
+  // 🧹 Clear labels and storage
+  clearButton?.addEventListener("click", () => {
+    container.innerHTML = "";
+    const cartonStartInput = document.getElementById("cartonStart");
+    if (cartonStartInput) cartonStartInput.value = 1;
+    localStorage.removeItem("labels");
     localStorage.removeItem("lastCartonStart");
   });
 
-  document.getElementById("exportPdf")?.addEventListener("click", async () => {
+  // 📄 Export as PDF
+  exportButton?.addEventListener("click", async () => {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const labels = document.querySelectorAll(".label");

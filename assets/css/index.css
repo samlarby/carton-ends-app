@@ -68,6 +68,7 @@ label {
 input {
     padding: 5px;
     width: 300px;
+    margin: 8px;
     }
 
 #labels-container {
@@ -157,6 +158,21 @@ button:hover {
     justify-content: space-between;
 }
 
+.toggle-log-btn {
+  margin: 8px 0;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.style-section {
+  border: 1px solid #ccc;
+  padding: 12px;
+  margin: 16px;
+  border-radius: 6px;
+  background: #f9f9f9;
+}
+
+
 .fa-solid {
   font-size: 40px;
   color: #8b8787;
@@ -196,6 +212,12 @@ table { border-collapse: collapse;
     margin: 10px;
 }
 
+#all-styles-container {
+    display: flex;
+    margin: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
 
 
 @media print {

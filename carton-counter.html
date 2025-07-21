@@ -24,34 +24,37 @@
     </header>
 <div class="main-container">
   <h2>Carton Counter</h2>
-  <input id="entryInput" placeholder="e.g. M-10" onkeydown="if(event.key==='Enter'){addEntry();}" />
-  <button onclick="addEntry()">Add</button>
-  <button onclick="resetAll()">Reset</button>
+  <label for="styleInput">Style: <input id="styleInput" placeholder="e.g. husk-knit" /></label>
+  <label for="entryInput">Box Quantity<input id="entryInput" placeholder="e.g. M-10" onkeydown="if(event.key==='Enter'){addEntry();}" /></label>
+
+  <div>
+    <button onclick="addEntry()">Add</button>
+    <button onclick="undoLast()">Undo Last</button>
+    <button onclick="resetAll()">Reset</button>
+    <button onclick="exportToExcel()">Export to Excel</button>
+  </div>
 
   <div class="tables-container">
-    <div class="table">
-        <h3>Summary</h3>
-        <table id="summaryTable">
-            <tr>
-            <th>Size</th>
-            <th>Qty</th>
-            <th>Count</th>
-            </tr>
-        </table>
-        <p id="totalBoxes">Total Boxes: 0</p>
-    </div>
-    <div class="table">
-        <h3>Log</h3>
-        <table id="logTable">
-            <tr>
-            <th>Size</th>
-            <th>Qty</th>
-            </tr>
-        </table>
-    </div>
+    <div id="all-styles-container"></div>
   </div>
+
+  <div id="modalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#00000080; z-index:999;"></div>
+
+<div id="logModal" style="display:none; position:fixed; top:10%; left:50%; transform:translateX(-50%); background:#fff; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.5); z-index:1000; max-height:80vh; overflow:auto;">
+  <h3 id="modalLogTitle">Log</h3>
+  <table id="modalLogTable" border="1" style="width:100%; margin-top:10px;">
+    <thead>
+      <tr><th>Size</th><th>Quantity</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <button id="closeModal" style="margin-top:10px;">Close</button>
 </div>
 
+
+
   <script src="assets/js/carton-counter.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 </body>
 </html>
