@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Packing List App</title>
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+    <header>
+        <h1 class="no-print">Carton and Packing List App</h1>
+        <nav>
+            <ul class="navbar">
+                <li class="nav-link">
+                    <a href="index.html">Create Carton Labels</a>
+                </li>
+                <li class="nav-link">
+                    <a href="create-carton-ends-from-pl.html" >Convert PL</a>
+                </li>
+                <li class="nav-link">
+                    <a href="carton-counter.html">Carton Counter</a>
+                </li>
+                <li class="nav-link">
+                    <a href="packing-list-creator.html" style="font-weight: bold;">Create Packing List</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+  <div class="main-container">
+  <h2>Create packing list from carton end labels</h2>  
+  <textarea id="labelInput" rows="12" placeholder="Paste carton end labels here..." style="width: 50%;"></textarea>
+  <div class="butons-container">
+    <button onclick="parseLabels()">Parse Labels</button>
+    <button onclick="downloadExcel()">Download Excel</button>
+    <button onclick="resetPackingList()">Reset Packing List</button>
+  </div>
+
+  <table id="packingTable">
+    <thead>
+      <tr>
+        <th>Carton No.</th><th>Style</th><th>2XS</th><th>XS</th><th>S</th><th>M</th><th>L</th><th>Total</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr id="totalsRow">
+        <td colspan="2">Totals Units By Size</td>
+        <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>    
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="assets/js/packing-list-creator.js"></script>
+</body>
+</html>
+
