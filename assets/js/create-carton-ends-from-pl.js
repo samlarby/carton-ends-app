@@ -4,8 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const clearButton = document.getElementById("clearLabels");
   const exportButton = document.getElementById("exportPdf");
 
-  // 🟡 Render saved labels on page load
-  function renderSavedLabels() {
+  // 🔁 Centralized function to render labels from localStorage
+  function refreshLabels() {
+    container.innerHTML = ""; // Clear existing labels
     const savedLabels = JSON.parse(localStorage.getItem("labels") || "[]");
     const template = document.getElementById("label-template").content;
     const total = savedLabels.length;
@@ -19,12 +20,16 @@ document.addEventListener("DOMContentLoaded", () => {
       label.querySelector(".out-cartonNumber").innerText = `${labelData.cartonNumber}/${total}`;
 
       const contentsDiv = label.querySelector(".out-contents");
-      contentsDiv.innerHTML = `<div class="label-box">${labelData.size} - ${labelData.quantity}</div>`;
+      contentsDiv.innerHTML = (labelData.sizes || []).map(
+        s => `<div class="label-box">${s.size} - ${s.quantity}</div>`
+      ).join("");
 
       container.appendChild(label);
     });
   }
-  renderSavedLabels();
+
+  // 🚀 Render labels on page load
+  refreshLabels();
 
   form?.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -68,11 +73,29 @@ document.addEventListener("DOMContentLoaded", () => {
         continue;
       }
 
-      const size = cells[sizeIndex]?.trim();
-      const qty = cells[qtyIndex]?.trim();
+      const sizeCell = cells[sizeIndex]?.trim();
+      const qtyCell = cells[qtyIndex]?.trim();
 
-      if (size && qty && !isNaN(qty) && +qty > 0) {
-        entries.push({ size: size.toLowerCase(), quantity: +qty });
+      if (!sizeCell || !qtyCell) continue;
+
+      const sizeParts = sizeCell.split(",").map(s => s.trim().toLowerCase());
+      const qtyParts = qtyCell.split(",").map(q => q.trim());
+
+      if (sizeParts.length !== qtyParts.length) {
+        console.warn(`Mismatched size/qty in row: ${row}`);
+        continue;
+      }
+
+      const contents = [];
+      for (let j = 0; j < sizeParts.length; j++) {
+        const quantity = Number(qtyParts[j]);
+        if (!isNaN(quantity) && quantity > 0) {
+          contents.push({ size: sizeParts[j], quantity });
+        }
+      }
+
+      if (contents.length > 0) {
+        entries.push(contents); // Push the whole group as one label
       }
     }
 
@@ -86,53 +109,33 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedLabels = JSON.parse(localStorage.getItem("labels") || "[]");
     const newTotal = existingLabels.length + entries.length;
 
-    // 🔁 Update existing labels' /total
-    existingLabels.forEach(label => {
-      const numberText = label.querySelector(".out-cartonNumber").innerText;
-      const currentNumber = numberText.split("/")[0];
-      label.querySelector(".out-cartonNumber").innerText = `${currentNumber}/${newTotal}`;
-    });
-
+    // 🆕 Create new label data (we will re-render from this)
     const newLabelData = [];
 
-    // 🆕 Create new labels
-    entries.forEach((entry, index) => {
-      const fragment = document.importNode(template, true);
-      const label = fragment.querySelector(".label");
-
+    entries.forEach((entryGroup, index) => {
       const cartonNumber = existingLabels.length + index + 1;
-
-      label.querySelector(".out-po").innerText = po;
-      label.querySelector(".out-style").innerText = style;
-      label.querySelector(".out-cartonNumber").innerText = `${cartonNumber}/${newTotal}`;
-
-      const contentsDiv = label.querySelector(".out-contents");
-      contentsDiv.innerHTML = `<div class="label-box">${entry.size} - ${entry.quantity}</div>`;
-
-      container.appendChild(label);
-
-      // Store this label for persistence
       newLabelData.push({
         po,
         style,
-        size: entry.size,
-        quantity: entry.quantity,
-        cartonNumber
+        cartonNumber,
+        sizes: entryGroup
       });
     });
 
     // 💾 Save all labels to localStorage
     const allLabels = [...savedLabels, ...newLabelData];
     localStorage.setItem("labels", JSON.stringify(allLabels));
+
+    // 🔄 Re-render labels
+    refreshLabels();
   });
 
   // 🧹 Clear labels and storage
   clearButton?.addEventListener("click", () => {
     container.innerHTML = "";
-    const cartonStartInput = document.getElementById("cartonStart");
-    if (cartonStartInput) cartonStartInput.value = 1;
     localStorage.removeItem("labels");
     localStorage.removeItem("lastCartonStart");
+    refreshLabels(); // <- ensure the UI resets too
   });
 
   // 📄 Export as PDF
