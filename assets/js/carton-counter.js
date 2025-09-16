@@ -246,6 +246,14 @@ function resetAll() {
 function exportToExcel() {
   const wb = XLSX.utils.book_new();
 
+  // --- Helper to sanitize sheet names ---
+  function sanitizeSheetName(name) {
+    return name
+      .replace(/[:\\/?*\[\]]/g, '')   // remove invalid characters
+      .substring(0, 31)               // Excel allows max 31 chars
+      .trim();                        // remove leading/trailing spaces
+  }
+
   for (const [style, data] of Object.entries(allStyleEntries)) {
     // --- Summary Sheet ---
     const summaryData = [["Size", "Qty", "Count"]];
@@ -254,7 +262,11 @@ function exportToExcel() {
       summaryData.push([size, qty, count]);
     });
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summarySheet, `${style}_Summary`);
+    XLSX.utils.book_append_sheet(
+      wb,
+      summarySheet,
+      sanitizeSheetName(`${style}_Summary`)
+    );
 
     // --- Log Sheet ---
     const logData = [["Size", "Quantity"]];
@@ -286,11 +298,16 @@ function exportToExcel() {
     });
 
     const logSheet = XLSX.utils.aoa_to_sheet(logData);
-    XLSX.utils.book_append_sheet(wb, logSheet, `${style}_Log`);
+    XLSX.utils.book_append_sheet(
+      wb,
+      logSheet,
+      sanitizeSheetName(`${style}_Log`)
+    );
   }
 
   XLSX.writeFile(wb, "carton_summary.xlsx");
 }
+
 
 // On page load
 window.onload = () => {
