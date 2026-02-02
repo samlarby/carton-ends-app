@@ -4,8 +4,10 @@ let allStyleEntries = {}; // { styleName: { summary: {}, logEntries: [] } }
 function initializeStyleData(style) {
   if (!allStyleEntries[style]) {
     allStyleEntries[style] = {
-      summary: Object.fromEntries(sizes.map(size => [size, { qty: 0, count: 0 }])),
-      logEntries: []
+      summary: Object.fromEntries(
+        sizes.map((size) => [size, { qty: 0, count: 0 }]),
+      ),
+      logEntries: [],
     };
   }
 }
@@ -19,6 +21,36 @@ function loadFromStorage() {
   if (stored) {
     allStyleEntries = JSON.parse(stored);
   }
+}
+
+function emptySummary() {
+  return Object.fromEntries(sizes.map((size) => [size, { qty: 0, count: 0 }]));
+}
+
+function rebuildStyleSummary(style) {
+  const data = allStyleEntries[style];
+  if (!data) return;
+
+  // reset summary
+  data.summary = emptySummary();
+
+  // rebuild from log
+  data.logEntries.forEach((entry) => {
+    if (entry.items) {
+      // add qty for each size
+      entry.items.forEach(({ size, qty }) => {
+        data.summary[size].qty += qty;
+      });
+      // your existing count logic: count only on first size
+      if (entry.items.length > 0) {
+        data.summary[entry.items[0].size].count += 1;
+      }
+    } else {
+      // legacy single entry support
+      data.summary[entry.size].qty += entry.qty;
+      data.summary[entry.size].count += 1;
+    }
+  });
 }
 
 function renderAllStyles() {
@@ -44,7 +76,7 @@ function renderAllStyles() {
     summaryTable.innerHTML = `<tr><th>Size</th><th>Qty</th><th>Count</th></tr>`;
 
     let totalBoxes = 0;
-    sizes.forEach(size => {
+    sizes.forEach((size) => {
       const { qty, count } = data.summary[size] || { qty: 0, count: 0 };
       totalBoxes += count;
       const row = document.createElement("tr");
@@ -61,19 +93,32 @@ function renderAllStyles() {
     logToggleBtn.className = "toggle-log-btn";
     logToggleBtn.onclick = () => showLogModal(style);
 
+    // ✅ PDF Export Button
+    const pdfBtn = document.createElement("button");
+    pdfBtn.innerText = "Export Labels (PDF)";
+    pdfBtn.className = "toggle-log-btn"; // reuse visible styling
+    pdfBtn.onclick = () => exportStyleLabelsToPDF(style);
+
     section.appendChild(summaryTable);
     section.appendChild(boxTotal);
     section.appendChild(logToggleBtn);
+    section.appendChild(pdfBtn); // ✅ append it
 
     container.appendChild(section);
   }
 }
 
-// Add entry handler supports mixed boxes input format: 
+// Add entry handler supports mixed boxes input format:
 // Either "M-10" (single size) or "M5,L5" (mixed sizes)
 function addEntry() {
-  const input = document.getElementById("entryInput").value.trim().toUpperCase();
-  const style = document.getElementById("styleInput").value.trim().toUpperCase();
+  const input = document
+    .getElementById("entryInput")
+    .value.trim()
+    .toUpperCase();
+  const style = document
+    .getElementById("styleInput")
+    .value.trim()
+    .toUpperCase();
 
   if (!input || !style) {
     alert("Please enter a style and size-quantity (e.g. M-10 or S-10,M-5).");
@@ -91,7 +136,9 @@ function addEntry() {
     const qty = parseInt(qtyStr, 10);
 
     if (!sizes.includes(size) || isNaN(qty) || qty <= 0) {
-      alert("Invalid entry. Use format SIZE-QUANTITY (e.g. M-10) or multiple like S-10,M-5");
+      alert(
+        "Invalid entry. Use format SIZE-QUANTITY (e.g. M-10) or multiple like S-10,M-5",
+      );
       return;
     }
     items.push({ size, qty });
@@ -111,7 +158,11 @@ function addEntry() {
   allStyleEntries[style].summary[items[0].size].count += 1;
 
   // Log the whole mixed box as one entry
-  allStyleEntries[style].logEntries.push({ items });
+  allStyleEntries[style].logEntries.push({
+    id: crypto.randomUUID(),
+    ts: Date.now(),
+    items,
+  });
 
   saveToStorage();
   renderAllStyles();
@@ -120,10 +171,74 @@ function addEntry() {
   document.getElementById("entryInput").focus();
 }
 
+function deleteLogEntry(style, entryId) {
+  const data = allStyleEntries[style];
+  if (!data) return;
+
+  data.logEntries = data.logEntries.filter((e) => e.id !== entryId);
+
+  rebuildStyleSummary(style);
+  saveToStorage();
+  renderAllStyles();
+  showLogModal(style); // refresh modal view
+}
+
+function editLogEntry(style, entryId) {
+  const data = allStyleEntries[style];
+  if (!data) return;
+
+  const entry = data.logEntries.find((e) => e.id === entryId);
+  if (!entry) return;
+
+  // Build a string like "S-10,M-5" from the existing entry
+  const current = entry.items
+    ? entry.items.map((i) => `${i.size}-${i.qty}`).join(",")
+    : `${entry.size}-${entry.qty}`;
+
+  const next = prompt(
+    "Edit this box. Use format like M-10 or S-10,M-5",
+    current,
+  );
+  if (next === null) return; // user cancelled
+
+  const input = next.trim().toUpperCase();
+  if (!input) {
+    alert("Entry cannot be empty.");
+    return;
+  }
+
+  // Parse (same rules as your addEntry)
+  const parts = input.split(",");
+  const items = [];
+
+  for (const part of parts) {
+    const [size, qtyStr] = part.split("-");
+    const qty = parseInt(qtyStr, 10);
+
+    if (!sizes.includes(size) || isNaN(qty) || qty <= 0) {
+      alert("Invalid entry. Use format SIZE-QUANTITY like M-10 or S-10,M-5");
+      return;
+    }
+    items.push({ size, qty });
+  }
+
+  // Apply updated entry (store as mixed-box format)
+  entry.items = items;
+  delete entry.size;
+  delete entry.qty;
+
+  rebuildStyleSummary(style);
+  saveToStorage();
+  renderAllStyles();
+  showLogModal(style);
+}
 
 // Undo last entry for a style
 function undoLast() {
-  const style = document.getElementById("styleInput").value.trim().toUpperCase();
+  const style = document
+    .getElementById("styleInput")
+    .value.trim()
+    .toUpperCase();
   if (!style || !allStyleEntries[style]) {
     alert("No entries for this style to undo.");
     return;
@@ -159,27 +274,28 @@ function undoLast() {
   renderAllStyles();
 }
 
-
 // Show modal popup for logs
 function showLogModal(style) {
   const modal = document.getElementById("logModal");
   const overlay = document.getElementById("modalOverlay");
   const tbody = document.querySelector("#modalLogTable tbody");
 
-  tbody.innerHTML = ""; // Clear previous rows
+  tbody.innerHTML = "";
 
   const data = allStyleEntries[style];
   if (!data || data.logEntries.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 2;
+    cell.colSpan = 3; // <-- changed to 3 because we have Actions column
     cell.innerText = "No log entries";
     row.appendChild(cell);
     tbody.appendChild(row);
+
+    modal.style.display = "block";
+    overlay.style.display = "block";
     return;
   }
 
-  // Sort the entries: for mixed boxes, sort based on the first size in the items array
   const sortedLogEntries = [...data.logEntries].sort((a, b) => {
     const getIndex = (entry) => {
       if (entry.items && entry.items.length > 0) {
@@ -190,34 +306,50 @@ function showLogModal(style) {
     return getIndex(a) - getIndex(b);
   });
 
-  sortedLogEntries.forEach(entry => {
+  sortedLogEntries.forEach((entry) => {
     const row = document.createElement("tr");
+
     const sizeCell = document.createElement("td");
     const qtyCell = document.createElement("td");
+    const actionsCell = document.createElement("td");
 
     if (entry.items) {
-      // Sort the items inside the mixed box
-      const sortedItems = [...entry.items].sort((a, b) =>
-        sizes.indexOf(a.size) - sizes.indexOf(b.size)
+      const sortedItems = [...entry.items].sort(
+        (a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size),
       );
-
-      sizeCell.innerText = sortedItems.map(i => i.size).join(", ");
-      qtyCell.innerText = sortedItems.map(i => i.qty).join(", ");
+      sizeCell.innerText = sortedItems.map((i) => i.size).join(", ");
+      qtyCell.innerText = sortedItems.map((i) => i.qty).join(", ");
     } else {
       sizeCell.innerText = entry.size;
       qtyCell.innerText = entry.qty;
     }
 
+    const editBtn = document.createElement("button");
+    editBtn.innerText = "Edit";
+    editBtn.onclick = () => editLogEntry(style, entry.id);
+
+    const delBtn = document.createElement("button");
+    delBtn.innerText = "Delete";
+    delBtn.onclick = () => {
+      if (confirm("Delete this log entry?")) {
+        deleteLogEntry(style, entry.id);
+      }
+    };
+
+    actionsCell.appendChild(editBtn);
+    actionsCell.appendChild(document.createTextNode(" "));
+    actionsCell.appendChild(delBtn);
+
     row.appendChild(sizeCell);
     row.appendChild(qtyCell);
+    row.appendChild(actionsCell);
+
     tbody.appendChild(row);
   });
 
   modal.style.display = "block";
   overlay.style.display = "block";
 }
-
-
 
 function closeLogModal() {
   document.getElementById("logModal").style.display = "none";
@@ -229,7 +361,6 @@ document.getElementById("closeModalBtn").onclick = closeLogModal;
 
 // Also clicking on overlay closes modal
 document.getElementById("modalOverlay").onclick = closeLogModal;
-
 
 // Reset all data
 function resetAll() {
@@ -249,15 +380,15 @@ function exportToExcel() {
   // --- Helper to sanitize sheet names ---
   function sanitizeSheetName(name) {
     return name
-      .replace(/[:\\/?*\[\]]/g, '')   // remove invalid characters
-      .substring(0, 31)               // Excel allows max 31 chars
-      .trim();                        // remove leading/trailing spaces
+      .replace(/[:\\/?*\[\]]/g, "") // remove invalid characters
+      .substring(0, 31) // Excel allows max 31 chars
+      .trim(); // remove leading/trailing spaces
   }
 
   for (const [style, data] of Object.entries(allStyleEntries)) {
     // --- Summary Sheet ---
     const summaryData = [["Size", "Qty", "Count"]];
-    sizes.forEach(size => {
+    sizes.forEach((size) => {
       const { qty, count } = data.summary[size] || { qty: 0, count: 0 };
       summaryData.push([size, qty, count]);
     });
@@ -265,7 +396,7 @@ function exportToExcel() {
     XLSX.utils.book_append_sheet(
       wb,
       summarySheet,
-      sanitizeSheetName(`${style}_Summary`)
+      sanitizeSheetName(`${style}_Summary`),
     );
 
     // --- Log Sheet ---
@@ -282,15 +413,15 @@ function exportToExcel() {
       return getIndex(a) - getIndex(b);
     });
 
-    sortedLogEntries.forEach(entry => {
+    sortedLogEntries.forEach((entry) => {
       if (entry.items) {
         // Sort items inside the mixed box
-        const sortedItems = [...entry.items].sort((a, b) =>
-          sizes.indexOf(a.size) - sizes.indexOf(b.size)
+        const sortedItems = [...entry.items].sort(
+          (a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size),
         );
         logData.push([
-          sortedItems.map(i => i.size).join(", "),
-          sortedItems.map(i => i.qty).join(", ")
+          sortedItems.map((i) => i.size).join(", "),
+          sortedItems.map((i) => i.qty).join(", "),
         ]);
       } else {
         logData.push([entry.size, entry.qty]);
@@ -301,18 +432,294 @@ function exportToExcel() {
     XLSX.utils.book_append_sheet(
       wb,
       logSheet,
-      sanitizeSheetName(`${style}_Log`)
+      sanitizeSheetName(`${style}_Log`),
     );
   }
 
   XLSX.writeFile(wb, "carton_summary.xlsx");
 }
 
+function buildLabelsSheetForAllStyles() {
+  const sheet = document.createElement("div");
+  sheet.className = "pdf-sheet";
 
-// On page load
-window.onload = () => {
+  const grid = document.createElement("div");
+  grid.className = "pdf-label-grid";
+  sheet.appendChild(grid);
+
+  const styles = Object.keys(allStyleEntries || {});
+  if (styles.length === 0) return null;
+
+  styles.sort();
+
+  // 1) Flatten all log entries across all styles first
+  const flat = [];
+  styles.forEach((style) => {
+    const data = allStyleEntries[style];
+    if (
+      !data ||
+      !Array.isArray(data.logEntries) ||
+      data.logEntries.length === 0
+    )
+      return;
+
+    data.logEntries.forEach((entry) => {
+      flat.push({ style, entry });
+    });
+  });
+
+  if (flat.length === 0) return null;
+
+  const grandTotal = flat.length;
+
+  // 2) Build labels with continuous carton numbers
+  flat.forEach(({ style, entry }, index) => {
+    const cartonNumber = index + 1;
+
+    const label = document.createElement("div");
+    label.className = "pdf-label";
+
+    const items = (entry.items || [])
+      .slice()
+      .sort((a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size));
+
+    label.innerHTML = `
+      <div class="pdf-label-content">
+        <div class="pdf-section">
+          <strong>Supplier Address</strong><br>
+          Sisters and Seekers Ltd<br>
+          Unit 2/4 Vista Business Park<br>
+          Ffordd Stephen Wade<br>
+          Hawarden<br>
+          CH5 3FN
+        </div>
+
+        <div class="pdf-section">
+          <strong>Carton QTY:</strong>
+          <div class="pdf-contents">
+            ${items.map((i) => `<div class="pdf-box">${i.size} - ${i.qty}</div>`).join("")}
+          </div>
+        </div>
+
+        <div class="pdf-section"><strong>Carton Number:</strong> ${cartonNumber}/${grandTotal}</div>
+        <div class="pdf-section"><strong>Style:</strong> ${style}</div>
+      </div>
+    `;
+
+    grid.appendChild(label);
+  });
+
+  return sheet;
+}
+
+async function exportAllLabelsToPDF() {
   loadFromStorage();
-  renderAllStyles();
-};
 
+  // Ask for PO number at export time
+  const po = prompt(
+    "Enter PO Number for these labels:",
+    localStorage.getItem("lastPO") || "",
+  );
+  if (po === null) return; // user cancelled
 
+  const poClean = po.trim();
+  if (!poClean) {
+    alert("PO Number is required to export labels.");
+    return;
+  }
+
+  // Remember it for next time (optional)
+  localStorage.setItem("lastPO", poClean);
+
+  // Flatten all logs across all styles
+  const styles = Object.keys(allStyleEntries || {}).sort();
+  const flat = [];
+  styles.forEach((style) => {
+    const data = allStyleEntries[style];
+    if (!data?.logEntries?.length) return;
+    data.logEntries.forEach((entry) => flat.push({ style, entry }));
+  });
+
+  if (flat.length === 0) {
+    alert("No logs found to export.");
+    return;
+  }
+
+  const grandTotal = flat.length;
+
+  // Setup PDF
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+  // Offscreen wrapper to render one label at a time using your existing CSS
+  const exportWrapper = document.createElement("div");
+  exportWrapper.style.position = "fixed";
+  exportWrapper.style.left = "-9999px";
+  exportWrapper.style.top = "0";
+  exportWrapper.style.background = "#fff";
+  document.body.appendChild(exportWrapper);
+
+  for (let i = 0; i < flat.length; i++) {
+    const { style, entry } = flat[i];
+    const cartonNumber = i + 1;
+
+    const label = document.createElement("div");
+    label.className = "label"; // uses your A4 label CSS
+
+    const items = (entry.items || [])
+      .slice()
+      .sort((a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size));
+
+    label.innerHTML = `
+      <div class="label-content">
+        <div class="label-section">
+          <strong>Supplier Address</strong><br>
+          Sisters and Seekers Ltd<br>
+          Unit 2/4 Vista Business Park<br>
+          Ffordd Stephen Wade<br>
+          Hawarden<br>
+          CH5 3FN
+        </div>
+
+        <div class="label-section"><strong>PO Number:</strong> ${poClean}</div>
+
+        <div class="label-section">
+          <strong>Carton QTY:</strong>
+          <div class="out-contents">
+            ${items.map((i) => `<div class="label-box">${i.size} - ${i.qty}</div>`).join("")}
+          </div>
+        </div>
+
+        <div class="label-section"><strong>Carton Number:</strong> ${cartonNumber}/${grandTotal}</div>
+        <div class="label-section"><strong>Style:</strong> ${style}</div>
+      </div>
+    `;
+
+    exportWrapper.innerHTML = "";
+    exportWrapper.appendChild(label);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const canvas = await html2canvas(label, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    if (i !== 0) pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+  }
+
+  document.body.removeChild(exportWrapper);
+  pdf.save(`ALL_Carton_Labels_PO_${poClean}.pdf`);
+}
+
+function buildPackingListRowsFromLogs() {
+  const styles = Object.keys(allStyleEntries || {}).sort();
+
+  // Flatten all cartons (log entries) across all styles
+  const flat = [];
+  styles.forEach((style) => {
+    const data = allStyleEntries[style];
+    if (!data?.logEntries?.length) return;
+
+    data.logEntries.forEach((entry) => {
+      flat.push({ style, entry });
+    });
+  });
+
+  // Build rows with continuous carton numbers
+  const rows = flat.map(({ style, entry }, idx) => {
+    const cartonNo = idx + 1;
+
+    // Initialize size columns to 0
+    const sizeMap = Object.fromEntries(sizes.map((s) => [s, 0]));
+
+    // Fill from entry.items
+    (entry.items || []).forEach(({ size, qty }) => {
+      if (sizeMap[size] !== undefined) sizeMap[size] += Number(qty) || 0;
+    });
+
+    // "To" column = total units in carton
+    const totalUnits = sizes.reduce((sum, s) => sum + (sizeMap[s] || 0), 0);
+
+    return { cartonNo, style, ...sizeMap, totalUnits };
+  });
+
+  return rows;
+}
+
+function exportPackingListToExcel() {
+  loadFromStorage();
+
+  const bookingRef = prompt("Enter BOOKING REF:", localStorage.getItem("lastBookingRef") || "");
+  if (bookingRef === null) return;
+
+  const po = prompt("Enter PO Number:", localStorage.getItem("lastPO") || "");
+  if (po === null) return;
+
+  const bookingRefClean = bookingRef.trim();
+  const poClean = po.trim();
+
+  localStorage.setItem("lastBookingRef", bookingRefClean);
+  localStorage.setItem("lastPO", poClean);
+
+  const rows = buildPackingListRowsFromLogs();
+  if (!rows.length) {
+    alert("No cartons/logs found to create a packing list.");
+    return;
+  }
+
+  const cartonRange = `1-${rows.length}`;
+
+  // Build the sheet as an Array-of-Arrays (AOA)
+  const aoa = [];
+
+  // Title row
+  aoa.push(["", "SISTERS AND SEEKERS PACKING LIST"]);
+  aoa.push([]);
+
+  // Header info rows (similar to your sheet)
+  aoa.push([`BOOKING REF: ${bookingRefClean}`, "", "", "", "", "", "", "", ""]);
+  aoa.push([`CARTON NUMBER RANGE: ${cartonRange}`, "", "", "", `PO Number: ${poClean}`]);
+  aoa.push([]);
+
+  // Table header row
+  aoa.push(["Carton No.", "Style", ...sizes, "To"]);
+
+  // Data rows
+  rows.forEach((r) => {
+    aoa.push([
+      r.cartonNo,
+      r.style,
+      ...sizes.map((s) => r[s] || 0),
+      r.totalUnits,
+    ]);
+  });
+
+  // Create workbook + worksheet
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Optional: set column widths (makes it look nicer)
+  ws["!cols"] = [
+    { wch: 10 }, // Carton No.
+    { wch: 28 }, // Style
+    ...sizes.map(() => ({ wch: 8 })), // sizes
+    { wch: 8 }, // To
+  ];
+
+  // Optional: merges to mimic centered title
+  // Merge title across multiple columns (Carton No + Style + sizes + To)
+  const totalCols = 2 + sizes.length + 1; // 2 fixed + sizes + To
+  ws["!merges"] = ws["!merges"] || [];
+  ws["!merges"].push({
+    s: { r: 0, c: 1 },
+    e: { r: 0, c: totalCols - 1 },
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws, "Packing List");
+  XLSX.writeFile(wb, `Packing_List_PO_${poClean || "NA"}.xlsx`);
+}
