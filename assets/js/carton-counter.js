@@ -515,105 +515,145 @@ function buildLabelsSheetForAllStyles() {
 async function exportAllLabelsToPDF() {
   loadFromStorage();
 
-  // Ask for PO number at export time
+  // PO prompt (once)
   const po = prompt(
     "Enter PO Number for these labels:",
     localStorage.getItem("lastPO") || "",
   );
-  if (po === null) return; // user cancelled
-
+  if (po === null) return;
   const poClean = po.trim();
   if (!poClean) {
     alert("PO Number is required to export labels.");
     return;
   }
-
-  // Remember it for next time (optional)
   localStorage.setItem("lastPO", poClean);
 
-  // Flatten all logs across all styles
-  const styles = Object.keys(allStyleEntries || {}).sort();
-  const flat = [];
-  styles.forEach((style) => {
-    const data = allStyleEntries[style];
-    if (!data?.logEntries?.length) return;
-    data.logEntries.forEach((entry) => flat.push({ style, entry }));
-  });
-
-  if (flat.length === 0) {
+  const flat = buildFlatCartonsAcrossAllStyles();
+  if (!flat.length) {
     alert("No logs found to export.");
     return;
   }
 
   const grandTotal = flat.length;
 
-  // Setup PDF
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  // Batch prompt
+  const defaultBatch = grandTotal > 100 ? 50 : grandTotal; // sensible default
+  const batchStr = prompt(
+    `You have ${grandTotal} labels.\n\n` +
+      `Enter batch size (e.g. 50). Larger batches may fail in-browser.`,
+    String(defaultBatch),
+  );
+  if (batchStr === null) return;
 
-  // Offscreen wrapper to render one label at a time using your existing CSS
-  const exportWrapper = document.createElement("div");
-  exportWrapper.style.position = "fixed";
-  exportWrapper.style.left = "-9999px";
-  exportWrapper.style.top = "0";
-  exportWrapper.style.background = "#fff";
-  document.body.appendChild(exportWrapper);
+  let batchSize = parseInt(batchStr, 10);
+  if (!Number.isFinite(batchSize) || batchSize <= 0) batchSize = defaultBatch;
 
-  for (let i = 0; i < flat.length; i++) {
-    const { style, entry } = flat[i];
-    const cartonNumber = i + 1;
+  // Quality vs memory: 1.5 is a good sweet spot
+  const CANVAS_SCALE = 1.5;
 
-    const label = document.createElement("div");
-    label.className = "label"; // uses your A4 label CSS
+  showProgress();
 
-    const items = (entry.items || [])
-      .slice()
-      .sort((a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size));
+  try {
+    let batchStart = 0;
+    let batchIndex = 1;
 
-    label.innerHTML = `
-      <div class="label-content">
-        <div class="label-section">
-          <strong>Supplier Address</strong><br>
-          Sisters and Seekers Ltd<br>
-          Unit 2/4 Vista Business Park<br>
-          Ffordd Stephen Wade<br>
-          Hawarden<br>
-          CH5 3FN
-        </div>
+    while (batchStart < grandTotal) {
+      const batchEnd = Math.min(batchStart + batchSize, grandTotal); // exclusive end
+      const slice = flat.slice(batchStart, batchEnd);
 
-        <div class="label-section"><strong>PO Number:</strong> ${poClean}</div>
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      });
 
-        <div class="label-section">
-          <strong>Carton QTY:</strong>
-          <div class="out-contents">
-            ${items.map((i) => `<div class="label-box">${i.size} - ${i.qty}</div>`).join("")}
+      // offscreen wrapper for rendering label with your existing A4 CSS
+      const exportWrapper = document.createElement("div");
+      exportWrapper.style.position = "fixed";
+      exportWrapper.style.left = "-9999px";
+      exportWrapper.style.top = "0";
+      exportWrapper.style.background = "#fff";
+      document.body.appendChild(exportWrapper);
+
+      for (let i = 0; i < slice.length; i++) {
+        const globalIndex = batchStart + i; // 0-based overall
+        const cartonNumber = globalIndex + 1; // 1-based
+        const { style, entry } = slice[i];
+
+        setProgress(cartonNumber, grandTotal, `Batch ${batchIndex}:`);
+
+        const label = document.createElement("div");
+        label.className = "label"; // uses your A4 label CSS
+
+        const items = (entry.items || [])
+          .slice()
+          .sort((a, b) => sizes.indexOf(a.size) - sizes.indexOf(b.size));
+
+        label.innerHTML = `
+          <div class="label-content">
+            <div class="label-section">
+              <strong>Supplier Address</strong><br>
+              Sisters and Seekers Ltd<br>
+              Unit 2/4 Vista Business Park<br>
+              Ffordd Stephen Wade<br>
+              Hawarden<br>
+              CH5 3FN
+            </div>
+
+            <div class="label-section"><strong>PO Number:</strong> ${poClean}</div>
+
+            <div class="label-section">
+              <strong>Carton QTY:</strong>
+              <div class="out-contents">
+                ${items.map((i) => `<div class="label-box">${i.size} - ${i.qty}</div>`).join("")}
+              </div>
+            </div>
+
+            <div class="label-section"><strong>Carton Number:</strong> ${cartonNumber}/${grandTotal}</div>
+            <div class="label-section"><strong>Style:</strong> ${style}</div>
           </div>
-        </div>
+        `;
 
-        <div class="label-section"><strong>Carton Number:</strong> ${cartonNumber}/${grandTotal}</div>
-        <div class="label-section"><strong>Style:</strong> ${style}</div>
-      </div>
-    `;
+        exportWrapper.innerHTML = "";
+        exportWrapper.appendChild(label);
 
-    exportWrapper.innerHTML = "";
-    exportWrapper.appendChild(label);
+        // let layout settle
+        await new Promise((r) => setTimeout(r, 30));
 
-    await new Promise((r) => setTimeout(r, 50));
+        const canvas = await html2canvas(label, {
+          scale: CANVAS_SCALE,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
 
-    const canvas = await html2canvas(label, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    });
+        const imgData = canvas.toDataURL("image/png");
 
-    const imgData = canvas.toDataURL("image/png");
+        if (i !== 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      }
 
-    if (i !== 0) pdf.addPage();
-    pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      document.body.removeChild(exportWrapper);
+
+      // save this batch
+      const from = batchStart + 1;
+      const to = batchEnd;
+      pdf.save(`Carton_Labels_PO_${poClean}_${from}-${to}.pdf`);
+
+      batchStart = batchEnd;
+      batchIndex++;
+    }
+
+    setProgress(grandTotal, grandTotal, "Done:");
+  } catch (err) {
+    console.error(err);
+    alert(
+      "PDF export failed (likely too many labels in one batch). Try a smaller batch size.",
+    );
+  } finally {
+    // small delay so “Done” shows briefly
+    setTimeout(hideProgress, 500);
   }
-
-  document.body.removeChild(exportWrapper);
-  pdf.save(`ALL_Carton_Labels_PO_${poClean}.pdf`);
 }
 
 function buildPackingListRowsFromLogs() {
@@ -672,6 +712,18 @@ function exportPackingListToExcel() {
   // Flatten all cartons (log entries) across all styles
   const styles = Object.keys(allStyleEntries || {}).sort();
   const flat = [];
+
+  const totalLabels = flat.length;
+
+  if (totalLabels > 100) {
+    const ok = confirm(
+      `You are about to export ${totalLabels} labels.\n\n` +
+        `Large exports can be slow or fail in the browser.\n\n` +
+        `Tip: consider exporting in batches (e.g. 1–50, 51–100).\n\n` +
+        `Continue anyway?`,
+    );
+    if (!ok) return;
+  }
 
   styles.forEach((style) => {
     const data = allStyleEntries[style];
@@ -756,4 +808,74 @@ function exportPackingListToExcel() {
 
   XLSX.utils.book_append_sheet(wb, ws, "Packing List");
   XLSX.writeFile(wb, `Packing_List_PO_${poClean || "NA"}.xlsx`);
+}
+
+function buildFlatCartonsAcrossAllStyles() {
+  const styles = Object.keys(allStyleEntries || {}).sort();
+  const flat = [];
+
+  styles.forEach((style) => {
+    const data = allStyleEntries[style];
+    if (!data?.logEntries?.length) return;
+    data.logEntries.forEach((entry) => flat.push({ style, entry }));
+  });
+
+  return flat;
+}
+
+function ensureProgressOverlay() {
+  let overlay = document.getElementById("pdfProgressOverlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "pdfProgressOverlay";
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background: #fff;
+      padding: 16px 20px;
+      border-radius: 8px;
+      min-width: 280px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+    ">
+      <div style="font-weight: 700; margin-bottom: 8px;">Exporting PDF…</div>
+      <div id="pdfProgressText" style="margin-bottom: 10px;">Preparing…</div>
+      <div style="height: 8px; background:#eee; border-radius: 99px; overflow:hidden;">
+        <div id="pdfProgressBar" style="height: 8px; width: 0%; background:#333;"></div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function setProgress(current, total, extra = "") {
+  const overlay = ensureProgressOverlay();
+  const text = overlay.querySelector("#pdfProgressText");
+  const bar = overlay.querySelector("#pdfProgressBar");
+
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  text.textContent = `${extra} ${current} / ${total}`;
+  bar.style.width = `${pct}%`;
+}
+
+function showProgress() {
+  const overlay = ensureProgressOverlay();
+  overlay.style.display = "flex";
+}
+
+function hideProgress() {
+  const overlay = ensureProgressOverlay();
+  overlay.style.display = "none";
 }
