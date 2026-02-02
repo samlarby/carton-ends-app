@@ -654,7 +654,10 @@ function buildPackingListRowsFromLogs() {
 function exportPackingListToExcel() {
   loadFromStorage();
 
-  const bookingRef = prompt("Enter BOOKING REF:", localStorage.getItem("lastBookingRef") || "");
+  const bookingRef = prompt(
+    "Enter BOOKING REF:",
+    localStorage.getItem("lastBookingRef") || "",
+  );
   if (bookingRef === null) return;
 
   const po = prompt("Enter PO Number:", localStorage.getItem("lastPO") || "");
@@ -666,59 +669,90 @@ function exportPackingListToExcel() {
   localStorage.setItem("lastBookingRef", bookingRefClean);
   localStorage.setItem("lastPO", poClean);
 
-  const rows = buildPackingListRowsFromLogs();
-  if (!rows.length) {
-    alert("No cartons/logs found to create a packing list.");
+  // Flatten all cartons (log entries) across all styles
+  const styles = Object.keys(allStyleEntries || {}).sort();
+  const flat = [];
+
+  styles.forEach((style) => {
+    const data = allStyleEntries[style];
+    if (!data?.logEntries?.length) return;
+    data.logEntries.forEach((entry) => flat.push({ style, entry }));
+  });
+
+  if (flat.length === 0) {
+    alert("No cartons found to export.");
     return;
   }
 
-  const cartonRange = `1-${rows.length}`;
+  const cartonRange = `1-${flat.length}`;
 
-  // Build the sheet as an Array-of-Arrays (AOA)
+  // Totals accumulators
+  const totalsBySize = Object.fromEntries(sizes.map((s) => [s, 0]));
+  let grandTotalUnits = 0;
+
+  // Build sheet content
   const aoa = [];
-
-  // Title row
   aoa.push(["", "SISTERS AND SEEKERS PACKING LIST"]);
   aoa.push([]);
-
-  // Header info rows (similar to your sheet)
-  aoa.push([`BOOKING REF: ${bookingRefClean}`, "", "", "", "", "", "", "", ""]);
-  aoa.push([`CARTON NUMBER RANGE: ${cartonRange}`, "", "", "", `PO Number: ${poClean}`]);
+  aoa.push([`BOOKING REF: ${bookingRefClean}`]);
   aoa.push([]);
+  aoa.push([
+    `CARTON NUMBER RANGE: ${cartonRange}`,
+    "",
+    "",
+    "",
+    `PO Number: ${poClean}`,
+  ]);
+  aoa.push([]);
+  aoa.push(["Carton No.", "Style", ...sizes, "Total"]);
 
-  // Table header row
-  aoa.push(["Carton No.", "Style", ...sizes, "To"]);
+  flat.forEach(({ style, entry }, idx) => {
+    const cartonNo = idx + 1;
 
-  // Data rows
-  rows.forEach((r) => {
-    aoa.push([
-      r.cartonNo,
-      r.style,
-      ...sizes.map((s) => r[s] || 0),
-      r.totalUnits,
-    ]);
+    const sizeMap = Object.fromEntries(sizes.map((s) => [s, 0]));
+    (entry.items || []).forEach(({ size, qty }) => {
+      if (sizeMap[size] !== undefined) sizeMap[size] += Number(qty) || 0;
+    });
+
+    const totalUnits = sizes.reduce((sum, s) => sum + sizeMap[s], 0);
+
+    // accumulate grand totals
+    sizes.forEach((s) => (totalsBySize[s] += sizeMap[s]));
+    grandTotalUnits += totalUnits;
+
+    aoa.push([cartonNo, style, ...sizes.map((s) => sizeMap[s]), totalUnits]);
   });
 
-  // Create workbook + worksheet
+  // Add totals at the bottom
+  aoa.push([]); // spacer row
+
+  // TOTALS row (per-size + To)
+  aoa.push([
+    "", // Carton No. blank
+    "Total Units By Size", // Style column label
+    ...sizes.map((s) => totalsBySize[s]),
+    grandTotalUnits,
+  ]);
+
+  // Create workbook
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-  // Optional: set column widths (makes it look nicer)
+  // Column widths (supported even in unstyled)
   ws["!cols"] = [
-    { wch: 10 }, // Carton No.
-    { wch: 28 }, // Style
-    ...sizes.map(() => ({ wch: 8 })), // sizes
+    { wch: 12 }, // Carton No.
+    { wch: 30 }, // Style
+    ...sizes.map(() => ({ wch: 8 })),
     { wch: 8 }, // To
   ];
 
-  // Optional: merges to mimic centered title
-  // Merge title across multiple columns (Carton No + Style + sizes + To)
-  const totalCols = 2 + sizes.length + 1; // 2 fixed + sizes + To
-  ws["!merges"] = ws["!merges"] || [];
-  ws["!merges"].push({
-    s: { r: 0, c: 1 },
-    e: { r: 0, c: totalCols - 1 },
-  });
+  // Merge title row (still supported)
+  ws["!merges"] = [
+    {
+      s: { r: 0, c: 1 },
+      e: { r: 0, c: 2 + sizes.length },
+    },
+  ];
 
   XLSX.utils.book_append_sheet(wb, ws, "Packing List");
   XLSX.writeFile(wb, `Packing_List_PO_${poClean || "NA"}.xlsx`);

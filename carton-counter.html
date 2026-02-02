@@ -1,79 +1,122 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Packing List</title>
-  <link rel="stylesheet" href="assets/css/index.css">
-</head>
-<body>
-    <header>
-        <h1 class="no-print">Carton and Packing List App</h1>
-        <nav>
-            <ul class="navbar">
-                <li class="nav-link">
-                    <a href="carton-counter.html" style="font-weight: bold;">Carton Counter</a>
-                </li>
-                <li class="nav-link">
-                    <a href="create-carton-ends-from-pl.html" >Create labels from count</a>
-                </li>
-                <li class="nav-link">
-                    <a href="packing-list-creator.html">Create Packing List</a>
-                </li>
-                <li class="nav-link">
-                    <a href="index.html">Create Labels</a>
-                </li>
-            </ul>
-        </nav>
-    </header>
-<div class="main-container">
-  <h2>Carton Counter</h2>
-  <label for="styleInput">Style: <input id="styleInput" placeholder="e.g. husk-knit" /></label>
-  <label for="entryInput">Box Quantity<input id="entryInput" placeholder="e.g. M-10" onkeydown="if(event.key==='Enter'){addEntry();}" /></label>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Packing List</title>
+        <link rel="stylesheet" href="assets/css/index.css" />
+    </head>
+    <body>
+        <header>
+            <h1 class="no-print">Carton and Packing List App</h1>
+            <nav>
+                <ul class="navbar">
+                    <li class="nav-link">
+                        <a href="carton-counter.html" style="font-weight: bold"
+                            >Carton Counter</a
+                        >
+                    </li>
+                    <li class="nav-link">
+                        <a href="create-carton-ends-from-pl.html"
+                            >Create labels from count</a
+                        >
+                    </li>
+                    <li class="nav-link">
+                        <a href="packing-list-creator.html"
+                            >Create Packing List</a
+                        >
+                    </li>
+                    <li class="nav-link">
+                        <a href="index.html">Create Labels</a>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+        <div class="main-container">
+            <h2>Carton Counter</h2>
+            <label for="styleInput"
+                >Style: <input id="styleInput" placeholder="e.g. husk-knit"
+            /></label>
+            <label for="entryInput"
+                >Box Quantity<input
+                    id="entryInput"
+                    placeholder="e.g. M-10"
+                    onkeydown="if(event.key==='Enter'){addEntry();}"
+            /></label>
 
-  <div>
-    <button onclick="addEntry()">Add</button>
-    <button onclick="undoLast()">Undo Last</button>
-    <button onclick="resetAll()">Reset</button>
-    <button onclick="exportToExcel()">Export to Excel</button>
-    <button onclick="exportAllLabelsToPDF()">Export ALL Labels (PDF)</button>
-    <button onclick="exportPackingListToExcel()">Export Packing List (Excel)</button>
+            <div>
+                <button onclick="addEntry()">Add</button>
+                <button onclick="undoLast()">Undo Last</button>
+                <button onclick="resetAll()">Reset</button>
+                <button onclick="exportToExcel()">Export to Excel</button>
+                <button onclick="exportAllLabelsToPDF()">
+                    Export ALL Labels (PDF)
+                </button>
+                <button onclick="exportPackingListToExcel()">
+                    Export Packing List (Excel)
+                </button>
+            </div>
 
-  </div>
+            <div class="tables-container">
+                <div id="all-styles-container"></div>
+            </div>
 
-  <div class="tables-container">
-    <div id="all-styles-container"></div>
-  </div>
+            <div
+                id="logModal"
+                class="modal"
+                style="
+                    display: none;
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 20px;
+                    border: 2px solid #333;
+                    z-index: 1000;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                "
+            >
+                <button id="closeModalBtn" style="float: right">Close</button>
+                <h3>Log Entries</h3>
+                <table
+                    id="modalLogTable"
+                    style="width: 100%; border-collapse: collapse"
+                >
+                    <thead>
+                        <tr>
+                            <th>Size</th>
+                            <th>Qty</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Filled dynamically -->
+                    </tbody>
+                </table>
+            </div>
 
-  <div id="logModal" class="modal" style="display:none; position:fixed; top:50%; left:50%; 
-  transform: translate(-50%, -50%); background: white; padding: 20px; border: 2px solid #333; z-index: 1000; max-height: 80vh; overflow-y: auto;">
-    <button id="closeModalBtn" style="float: right;">Close</button>
-    <h3>Log Entries</h3>
-    <table id="modalLogTable" style="width: 100%; border-collapse: collapse;">
-        <thead>
-        <tr>
-            <th>Size</th>
-            <th>Qty</th>
-            <th>Actions</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- Filled dynamically -->
-        </tbody>
-    </table>
-  </div>
+            <div
+                id="modalOverlay"
+                style="
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 999;
+                "
+            ></div>
+        </div>
+        <!-- close main-container if it's open -->
 
-    <div id="modalOverlay" style="display:none; position: fixed; top: 0; left: 0; 
-    width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 999;"></div>
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- Libraries FIRST -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-    <!-- Your code LAST -->
-    <script src="assets/js/carton-counter.js?v=4"></script>
-
-</body>
+        <script src="assets/js/carton-counter.js?v=6"></script>
+    </body>
 </html>
-
